@@ -202,17 +202,22 @@ const ConversationObserver: React.FC<{}> = () => {
             return
         }
 
+        console.log("getChatCount started")
         getChatCount()
+        console.log("getChatCount fin")
+
+
         for (let turnNum = 2; turnNum <= lastTurnNumberOnDomRef.current; turnNum += 2) {
 
             const userTurn = turnNum;
             const assistantTurn = turnNum + 1;
 
-            const userTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${userTurn})`)
-            const assistantTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${assistantTurn})`)
-            const userGeneralEditButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div > button`) as HTMLButtonElement | null;
+            const userTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn})`)
+            const assistantTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${assistantTurn})`)
+            const userGeneralEditButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div > button`) as HTMLButtonElement | null;
             const editFractionString = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > span`)?.textContent
             const chatNodePair: ChatNodePair[] = [{ uuid: "temp", children: new Map<string, ChatNodePair> }]
+            const helpfulDom = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div.mx-auto")
 
             // Initialize chat node pair and edit count tracking.
             // !!When editing a user message, the conversation-turn-## stays the same. If the assistant replies then its conversation-turn-## also stays the same
@@ -251,7 +256,11 @@ const ConversationObserver: React.FC<{}> = () => {
                 const editCountStr = editCount > 0 ? `#${editCount}` : '';
                 chatNodeMap.set(`${userTurn}—${assistantTurn}${editCountStr}`, listOfEdits);
             } else {
-                // TODO: need to check if there are other chats within it
+                // return if it is the "Is this conversation helpful so far?"
+                if (helpfulDom === userTextElement) {
+                    return
+                }
+
                 if (userTextElement) {
                     console.log("Parsing Dom To Chat node in parseCurrentChatBody()")
                     console.log("parseDomToChatNode element", userTextElement)
@@ -281,6 +290,17 @@ const ConversationObserver: React.FC<{}> = () => {
         }
         // show the chatNodeMap
         console.log("chatNodeMap", chatNodeMap)
+        // Iterate over each entry in the map
+        for (let [key, value] of chatNodeMap) {
+            console.log(key + ":");
+
+            // Print the content of each chat node
+            value.forEach(nodePair => {
+                console.log("User: ", nodePair.userNode?.content);
+                console.log("Assistant: ", nodePair.assistantNode?.content);
+            });
+        }
+
     }
 
     function getChatCount() {
@@ -288,7 +308,7 @@ const ConversationObserver: React.FC<{}> = () => {
         // "if chatBody exists"
         if (!!chatBody) {
             // Assuming each turn is a 'div' directly under 'chatBody'
-            const turns = chatBody.querySelectorAll(":scope > div");
+            const turns = chatBody.querySelectorAll(":scope > div > div");
             console.log(`Total conversation turns: ${turns.length}`);
             lastTurnNumberOnDomRef.current = turns.length
         } else {

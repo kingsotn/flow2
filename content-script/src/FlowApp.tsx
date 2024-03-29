@@ -142,7 +142,6 @@ export function ReactFlowAutoLayout() {
                     children: new Map<string, ChatNodePair>(),
                     parent: mindMapInfo.lastNodeOnDom,
                 };
-                console.log("YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
                 addChildNode(newCNP)
             }
