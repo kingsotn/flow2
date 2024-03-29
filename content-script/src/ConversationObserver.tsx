@@ -24,12 +24,14 @@ const parseDomToChatNode = (turnNumber: number, messageDiv: Element): ChatNode =
         ? parseInt(conversationTurnString.match(/\d+$/)?.[0] ?? '0', 10)
         : null;
     let content =
+        messageDiv.querySelector(` div > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.flex.flex-grow.flex-col.max-w-full > div > div`)?.textContent ||
         messageDiv.querySelector('[data-message-author-role="assistant"][data-message-id="17700b54-fa5a-46da-8caf-8dc71f7fe8e3"] .markdown p') ||
+        // messageDiv.querySelector(`> div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.flex.flex-grow.flex-col.max-w-full > div > div`) ||
         messageDiv.querySelector('.markdown')?.textContent ||
         '';
 
     if (uuid === undefined || uuid === null) {
-        throw new Error('UUID is null or undefined');
+        throw new Error('Error: UUID is null or undefined');
     }
 
     if (conversationTurnString === null) {
@@ -40,7 +42,7 @@ const parseDomToChatNode = (turnNumber: number, messageDiv: Element): ChatNode =
         throw new Error('Content is null');
     }
 
-    console.log(isEven(turnNumber) ? "Assistant" : "User", uuid.slice(-14), conversationTurn, content);
+    console.log(isEven(turnNumber) ? "User" : "Assistant", uuid.slice(-14), conversationTurn, content);
     return {
         uuid: uuid || '',
         conversationTurn: conversationTurn || 0,
@@ -86,7 +88,11 @@ const ConversationObserver: React.FC<{}> = () => {
                     // console.log("sess aint the same!", mutationSessionIdRef.current, sessionId);
                     // ReactFlowAutoLayout();
 
+                    //  when this happens, should first check if the chatContentMap exists for this chat, otherwise parse the entire DOM
+
+                    //  then render to the ui
                     console.log("set new Id");
+
                     mutationSessionIdRef.current = sessionId;
                 }
 
@@ -178,31 +184,103 @@ const ConversationObserver: React.FC<{}> = () => {
     }, [sessionId]); // Dependency on sessionId to reset observer if it changes
 
 
-    // figure out how many i have
+    // figure out how many i have                     
 
     function onEditButtonClick() {
         console.log('Edit button was clicked.');
         // set the current lastNodeOnDom
     }
 
-    let chatNodeMap = new Map<string, ChatNode>(); // uuid : ChatNode
+    let chatNodeMap = new Map<string, ChatNodePair[]>(); // userNode.uuid : ChatNodePair[]
 
-    // Get all button dom refs and check if they have been clicked, starts at 2 and every 2 is editable
     function parseCurrentChatBody() {
-        getChatCount()
-        for (let turnNum = 2; turnNum <= lastTurnNumberOnDomRef.current; turnNum++) {
-            const textElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${turnNum})`)
-            const generalEditButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${turnNum}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div > button`)
 
-            if (textElement) {
-                console.log("Parsing Dom To Chat node in parseCurrentChatBody()")
-                parseDomToChatNode(turnNum, textElement)
-            }
-            if (generalEditButton) {
-                console.log(`button on ${turnNum}`)
-                generalEditButton.addEventListener('click', onEditButtonClick);
-            }
+        console.log("sessionId", sessionId)
+        // Nothing to parse, empty
+        if (sessionId === "newChat") {
+            console.log("newChat detected")
+            return
         }
+
+        getChatCount()
+        for (let turnNum = 2; turnNum <= lastTurnNumberOnDomRef.current; turnNum += 2) {
+
+            const userTurn = turnNum;
+            const assistantTurn = turnNum + 1;
+
+            const userTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${userTurn})`)
+            const assistantTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${assistantTurn})`)
+            const userGeneralEditButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div > button`) as HTMLButtonElement | null;
+            const editFractionString = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > span`)?.textContent
+            const chatNodePair: ChatNodePair[] = [{ uuid: "temp", children: new Map<string, ChatNodePair> }]
+
+            // Initialize chat node pair and edit count tracking.
+            // !!When editing a user message, the conversation-turn-## stays the same. If the assistant replies then its conversation-turn-## also stays the same
+            // !!An example: if my message is 85, and assistant is at 86. If I edit 85 to another message and submit, then the new div would render but still stay as 85 and assistant will also be 86
+            // !!also, the numerator is cached in cookies somewhere when chat switching (i.e 2/3), but on reload it matches denominator (i.e 3/3). Guess i'll just ask users to reload for now... i don't want to think ab this too much
+            let editCount = 0, numerator = 0;
+            if (editFractionString) {
+                [numerator, editCount] = editFractionString.split('/').map(Number);
+                const previousButton = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(6) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > button:nth-child(1)") as HTMLButtonElement | null;
+                const listOfEdits: ChatNodePair[] = []
+                for (let i = editCount; i > 0; i--) {
+                    if (i > 1) { // click prev
+                        if (userTextElement && assistantTextElement) {
+                            const parsedChatNodeUser: ChatNode = parseDomToChatNode(userTurn, userTextElement)
+                            const parsedChatNodeAssistant: ChatNode = parseDomToChatNode(userTurn, assistantTextElement)
+                            let editPair = {
+
+                                uuid: parsedChatNodeUser.uuid,
+                                userNode: parsedChatNodeUser,
+                                assistantNode: parsedChatNodeAssistant,
+                                children: new Map(),
+                            };
+
+                            listOfEdits.push(editPair)
+
+                        } else {
+                            console.log("editFractionString: userTextElement doesn't exist")
+                            console.log("editFractionString: assistantTextElement doesn't exist")
+                        }
+
+                        // todo: click the previous button here:
+                        previousButton?.click();
+                    }
+                }
+                // append to the map
+                const editCountStr = editCount > 0 ? `#${editCount}` : '';
+                chatNodeMap.set(`${userTurn}—${assistantTurn}${editCountStr}`, listOfEdits);
+            } else {
+                // TODO: need to check if there are other chats within it
+                if (userTextElement) {
+                    console.log("Parsing Dom To Chat node in parseCurrentChatBody()")
+                    console.log("parseDomToChatNode element", userTextElement)
+                    const parsedChatNode: ChatNode = parseDomToChatNode(userTurn, userTextElement)
+
+                    chatNodePair[0].uuid = parsedChatNode.uuid
+                    chatNodePair[0].userNode = parsedChatNode
+                }
+
+                if (assistantTextElement) {
+                    console.log("Parsing Dom To Chat node in parseCurrentChatBody()")
+                    console.log("parseDomToChatNode element", assistantTextElement)
+                    const parsedChatNode: ChatNode = parseDomToChatNode(assistantTurn, assistantTextElement)
+
+                    chatNodePair[0].assistantNode = parsedChatNode
+                    // TODO: need to parse into ChatNodePairs!
+                }
+
+                if (userGeneralEditButton) {
+                    console.log(`button on ${userTurn}`)
+                    userGeneralEditButton.addEventListener('click', onEditButtonClick);
+                }
+                // append to the map
+                chatNodeMap.set(`${userTurn}—${assistantTurn}`, chatNodePair);
+            }
+
+        }
+        // show the chatNodeMap
+        console.log("chatNodeMap", chatNodeMap)
     }
 
     function getChatCount() {

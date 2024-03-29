@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface SessionType {
-    sessionId: string;
+    sessionId: string; // empty chat should just be "newChat", should never be null
     setSessionId: (id: string) => void;
 }
 
@@ -9,17 +9,17 @@ const extractSessionIdFromHref = (href: string): string => {
     const url = new URL(href);
     const paths = url.pathname.split('/');
     const index = paths.findIndex((p) => p === 'c');
+
     return index !== -1 ? paths[index + 1] : "newChat";
 };
 
-const SessionContext = createContext<SessionType>({ sessionId: "newChat", setSessionId: () => { } });
+const SessionContext = createContext<SessionType>({ sessionId: "", setSessionId: () => { } });
 
 export const useSession = () => useContext(SessionContext);
 
 export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const location = document.location
-    console.log("loc", location)
-    const [sessionId, setSessionId] = useState<string>(location.href);
+    const [sessionId, setSessionId] = useState<string>("newChat");
 
 
 
@@ -27,7 +27,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         console.log("new href", location.href)
         const checkSessionId = () => {
             const currentSessionId = extractSessionIdFromHref(location.href);
-            if (currentSessionId !== sessionId || currentSessionId == "newChat") {
+            if (currentSessionId !== sessionId || currentSessionId !== null) {
                 setSessionId(currentSessionId);
             }
 
