@@ -16,18 +16,16 @@ if (!appRootElem) {
     console.log("creating")
 }
 
-
-
 if (appRootElem) {
     const root = createRoot(appRootElem);
     root.render(
         <React.StrictMode>
-            <SessionProvider>
+            {/* <SessionProvider>
                 <MindMapProvider>
                     <ConversationObserver />
-                    {/* <App /> */}
+                    <App />
                 </MindMapProvider>
-            </SessionProvider>
+            </SessionProvider> */}
         </React.StrictMode>,
     );
 } else {

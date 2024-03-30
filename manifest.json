@@ -3,6 +3,13 @@
     "name": "Flow",
     "description": "A Mind Map for ChatGPT",
     "version": "1.0.0",
+    "permissions": ["webRequest", "scripting", "activeTab", "storage"],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "host_permissions": [
+        "*://*.chat.openai.com/*"
+      ],
     "action": {
         "default_title": "Popup",
         "default_popup": "index.html",
