@@ -193,6 +193,8 @@ const ConversationObserver: React.FC<{}> = () => {
 
     let chatNodeMap = new Map<string, ChatNodePair[]>(); // userNode.uuid : ChatNodePair[]
 
+
+
     function parseCurrentChatBody() {
 
         console.log("sessionId", sessionId)
@@ -215,9 +217,30 @@ const ConversationObserver: React.FC<{}> = () => {
             const userTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn})`)
             const assistantTextElement = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${assistantTurn})`)
             const userGeneralEditButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div > button`) as HTMLButtonElement | null;
-            const editFractionString = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > span`)?.textContent
-            const chatNodePair: ChatNodePair[] = [{ uuid: "temp", children: new Map<string, ChatNodePair> }]
+            const editFractionString = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > span`)?.textContent
             const helpfulDom = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div.mx-auto")
+            const chatNodePair: ChatNodePair[] = [{ uuid: "temp", children: new Map<string, ChatNodePair> }]
+            const previousButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > button:nth-child(1)`) as HTMLButtonElement | null;
+
+            // Check if any of the selected DOM elements are empty
+            if (!userTextElement) {
+                console.log("User text element is empty");
+            }
+            if (!assistantTextElement) {
+                console.log("Assistant text element is empty");
+            }
+            if (!userGeneralEditButton) {
+                console.log("User general edit button is empty");
+            }
+            if (!editFractionString) {
+                console.log("Edit fraction string is empty");
+            }
+            if (!helpfulDom) {
+                console.log("Helpful DOM element is empty");
+            }
+            if (!previousButton) {
+                console.log("Previous button is empty");
+            }
 
             // Initialize chat node pair and edit count tracking.
             // !!When editing a user message, the conversation-turn-## stays the same. If the assistant replies then its conversation-turn-## also stays the same
@@ -226,40 +249,37 @@ const ConversationObserver: React.FC<{}> = () => {
             let editCount = 0, numerator = 0;
             if (editFractionString) {
                 [numerator, editCount] = editFractionString.split('/').map(Number);
-                const previousButton = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div:nth-child(6) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > button:nth-child(1)") as HTMLButtonElement | null;
                 const listOfEdits: ChatNodePair[] = []
                 for (let i = editCount; i > 0; i--) {
-                    if (i > 1) { // click prev
-                        if (userTextElement && assistantTextElement) {
-                            const parsedChatNodeUser: ChatNode = parseDomToChatNode(userTurn, userTextElement)
-                            const parsedChatNodeAssistant: ChatNode = parseDomToChatNode(userTurn, assistantTextElement)
-                            let editPair = {
-
-                                uuid: parsedChatNodeUser.uuid,
-                                userNode: parsedChatNodeUser,
-                                assistantNode: parsedChatNodeAssistant,
-                                children: new Map(),
-                            };
-
-                            listOfEdits.push(editPair)
-
-                        } else {
-                            console.log("editFractionString: userTextElement doesn't exist")
-                            console.log("editFractionString: assistantTextElement doesn't exist")
-                        }
-
-                        // todo: click the previous button here:
-                        previousButton?.click();
+                    if (!userTextElement || !assistantTextElement) {
+                        console.log("Edit fraction string: One or both text elements don't exist.");
+                        continue;
                     }
+
+                    if (!userTextElement || !assistantTextElement) {
+                        console.log("editFractionString: userTextElement doesn't exist")
+                        console.log("editFractionString: assistantTextElement doesn't exist")
+                    }
+                    const parsedChatNodeUser: ChatNode = parseDomToChatNode(userTurn, userTextElement)
+                    const parsedChatNodeAssistant: ChatNode = parseDomToChatNode(assistantTurn, assistantTextElement)
+                    let editPair = {
+
+                        uuid: parsedChatNodeUser.uuid,
+                        userNode: parsedChatNodeUser,
+                        assistantNode: parsedChatNodeAssistant,
+                        children: new Map(),
+                    };
+                    listOfEdits.push(editPair)
+                    console.log("BLAHHHHH")
+                    // todo: click the previous button here:
+                    previousButton?.click();
                 }
                 // append to the map
                 const editCountStr = editCount > 0 ? `#${editCount}` : '';
                 chatNodeMap.set(`${userTurn}—${assistantTurn}${editCountStr}`, listOfEdits);
             } else {
                 // return if it is the "Is this conversation helpful so far?"
-                if (helpfulDom === userTextElement) {
-                    return
-                }
+                if (helpfulDom === userTextElement) return;
 
                 if (userTextElement) {
                     console.log("Parsing Dom To Chat node in parseCurrentChatBody()")
@@ -274,9 +294,7 @@ const ConversationObserver: React.FC<{}> = () => {
                     console.log("Parsing Dom To Chat node in parseCurrentChatBody()")
                     console.log("parseDomToChatNode element", assistantTextElement)
                     const parsedChatNode: ChatNode = parseDomToChatNode(assistantTurn, assistantTextElement)
-
                     chatNodePair[0].assistantNode = parsedChatNode
-                    // TODO: need to parse into ChatNodePairs!
                 }
 
                 if (userGeneralEditButton) {
@@ -291,15 +309,15 @@ const ConversationObserver: React.FC<{}> = () => {
         // show the chatNodeMap
         console.log("chatNodeMap", chatNodeMap)
         // Iterate over each entry in the map
-        for (let [key, value] of chatNodeMap) {
-            console.log(key + ":");
+        // for (let [key, value] of chatNodeMap) {
+        //     console.log(key + ":");
 
-            // Print the content of each chat node
-            value.forEach(nodePair => {
-                console.log("User: ", nodePair.userNode?.content);
-                console.log("Assistant: ", nodePair.assistantNode?.content);
-            });
-        }
+        //     // Print the content of each chat node
+        //     value.forEach(nodePair => {
+        //         console.log("User: ", nodePair.userNode?.content);
+        //         console.log("Assistant: ", nodePair.assistantNode?.content);
+        //     });
+        // }
 
     }
 
