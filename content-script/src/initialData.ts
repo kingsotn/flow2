@@ -8,11 +8,15 @@ export const defaultSystem: ChatNodePair = {
     uuid: 'systemChatNode',
     // content: // TODO: this can actually be parsed down the future (system msg)
     parent: null,
+    userTurn: 1,
+    assistantTurn: 1,
     children: new Map<string, ChatNodePair>(),
 };
 
 export const defaultHead: ChatNodePair = {
     uuid: 'headChatNode',
+    userTurn: 0,
+    assistantTurn: 0,
     children: new Map<string, ChatNodePair>([[defaultSystem.uuid, defaultSystem]]),
 };
 

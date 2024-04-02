@@ -25,7 +25,7 @@ if (appRootElem) {
             <SessionProvider>
                 <MindMapProvider>
                     <ConversationObserver />
-                    {/* <App /> */}
+                    <App />
                 </MindMapProvider>
             </SessionProvider>
         </React.StrictMode>,

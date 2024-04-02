@@ -95,7 +95,7 @@ export function ReactFlowAutoLayout() {
 
         const childNode: ChatNodePairUi = {
             id: node.uuid,
-            data: { ...node, label: node.uuid },
+            data: { ...node, label: String(node.userTurn) },
             position: { x: 0, y: 0 },
             style: { opacity: 0 },
         };
@@ -126,6 +126,8 @@ export function ReactFlowAutoLayout() {
         setEdges((currentEdges) => currentEdges.concat([connectingEdge]));
     }, [setNodes, setEdges]);
 
+
+    // normally adding a node
     useEffect(() => {
         {
             console.log("all nodes:")
@@ -141,12 +143,16 @@ export function ReactFlowAutoLayout() {
                     uuid: mindMapInfo.toAddNode.uuid,
                     children: new Map<string, ChatNodePair>(),
                     parent: mindMapInfo.lastNodeOnDom,
+                    userTurn: mindMapInfo.toAddNode.userTurn,
+                    assistantTurn: mindMapInfo.toAddNode.assistantTurn,
                 };
 
                 addChildNode(newCNP)
             }
         }
     }, [mindMapInfo.nodes.size, mindMapInfo.toAddNode])
+
+    // 
 
 
     return (

@@ -27,6 +27,8 @@ export interface ChatNodePair {
     userNode?: ChatNode
     assistantNode?: ChatNode
     label?: string,
+    userTurn: number,
+    assistantTurn: number,
 
     // set
     children: Map<string, ChatNodePair>; // {uuid : ChatNodePair...}
@@ -37,7 +39,7 @@ export interface MindMapContextType {
     sessionId: string;
     nodes: Map<string, ChatNodePair>;
     updateLastNodeOnDomRef: (node: ChatNodePair) => void;
-    addChatNodePair: (node: ChatNodePair) => void;
+    addChatNodePair: (node: ChatNodePair, isBranch?: boolean) => void;
     lastNodeOnDom: ChatNodePair;
     toAddNode: ChatNodePair | null; // Adjusted to allow ChatNodePair or null
     setToAddNode: (node: ChatNodePair | null) => void; // Ensure setter accepts ChatNodePair | null
@@ -48,7 +50,7 @@ export const defaultMindMapContextValue: MindMapContextType = {
     sessionId: '', // Assuming an empty string or some initial value
     nodes: new Map([[defaultSystem.uuid, defaultSystem]]),
     updateLastNodeOnDomRef: () => { },
-    addChatNodePair: (node: ChatNodePair) => { }, // Stub function, since we can't add nodes without the provider
+    addChatNodePair: (node: ChatNodePair, isBranch?: boolean) => { }, // Stub function, since we can't add nodes without the provider
     lastNodeOnDom: defaultSystem,
     toAddNode: null,
     setToAddNode: () => { },
@@ -62,16 +64,21 @@ const MindMapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     // const { addChildNode } = useFlow();
     const nodes = useRef<Map<string, ChatNodePair>>(new Map([[defaultHead.uuid, defaultHead], [defaultSystem.uuid, defaultSystem]]));
     const lastNodeOnDomRef = useRef<ChatNodePair>(defaultSystem);
-    const [toAddNode, setToAddNode] = useState<ChatNodePair | null>(null);
-    // const { flowNodes, SetNodes, onNodesChange, flowEdges, SetEdges, onEdgesChange, onConnect } = useFlow();
+    const [toAddNode, setToAddNode] = useState<ChatNodePair | null>(null); // this is needed in FlowApp to keep track of state
 
-    const addChatNodePair = (node: ChatNodePair) => {
+    const addChatNodePair = (node: ChatNodePair, isBranch?: boolean) => {
         // Access the current value of the nodes ref
         const updatedNodes = new Map(nodes.current);
 
+        let parentNode = lastNodeOnDomRef.current
+        if (isBranch) {
+            console.log("addChatNodePair>> branching via:", node.uuid.slice(-14))
+            console.log("addChatNodePair>> parent node:")
+            // parentNode = node.parent
+        }
+
         // Access the most current lastNodeOnDom from the ref
         console.log("lastnode", lastNodeOnDomRef.current.uuid)
-        const parentNode = lastNodeOnDomRef.current
         if (!parentNode) {
             console.error(`Parent node not found. This should not happen.`);
             return; // Return if the parent isn't found
@@ -91,7 +98,6 @@ const MindMapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         // lastNodeOnDomRef.current = node;
         console.log("lastNodeOnDom", lastNodeOnDomRef.current.uuid.slice(-14));
         console.log(`MindMap (${sessionId}):`);
-
         console.log("calling addChildNode")
     };
 
