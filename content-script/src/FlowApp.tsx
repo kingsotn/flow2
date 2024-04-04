@@ -35,7 +35,7 @@ export function ReactFlowAutoLayout() {
     console.log("calling ReactFlowAutoLayout")
 
     const { fitView, addNodes } = useReactFlow();
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes); // nodes refers to nodes on the ui
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
     // this hook handles the computation of the layout once the elements or the direction changes
@@ -100,7 +100,8 @@ export function ReactFlowAutoLayout() {
             style: { opacity: 0 },
         };
 
-        console.log(`connecting!!!!!!!!!!!!1 ${node.parent.uuid} to ${node.uuid}`)
+        // console.log(`connecting!!!!!!!!!!!!1 ${node.parent.uuid} to ${node.uuid}`)
+        console.log(`connecting!!!!!!!!!!!! ${node.parent.userTurn} to ${node.userTurn}`)
         const connectingEdge: Edge = {
             id: `${node.parent.uuid}->${node.uuid}`,
             source: node.parent.uuid, // Assuming node.parent is a string. If node.parent is an object, adjust accordingly.
@@ -111,7 +112,8 @@ export function ReactFlowAutoLayout() {
 
         console.log("connectingEdge", connectingEdge)
 
-        console.log(`parent: ${node.parent.uuid}`, `child: ${node.uuid}`)
+        // console.log(`parent: ${node.parent.uuid}`, `child: ${node.uuid}`)
+        // console.log(`parent: ${node.parent.userTurn}`, `child: ${node.userTurn}`)
 
         addNodes({
             id: node.uuid,
@@ -150,7 +152,7 @@ export function ReactFlowAutoLayout() {
                 addChildNode(newCNP)
             }
         }
-    }, [mindMapInfo.nodes.size, mindMapInfo.toAddNode])
+    }, [mindMapInfo.mindMap.size, mindMapInfo.toAddNode])
 
     // 
 

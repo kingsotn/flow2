@@ -4,7 +4,7 @@ import { ChatNodePair } from './MindMapProvider';
 
 // These are the backend inits of nodes
 
-export const defaultSystem: ChatNodePair = {
+export const systemPrompt: ChatNodePair = {
     uuid: 'systemChatNode',
     // content: // TODO: this can actually be parsed down the future (system msg)
     parent: null,
@@ -17,11 +17,11 @@ export const defaultHead: ChatNodePair = {
     uuid: 'headChatNode',
     userTurn: 0,
     assistantTurn: 0,
-    children: new Map<string, ChatNodePair>([[defaultSystem.uuid, defaultSystem]]),
+    children: new Map<string, ChatNodePair>([[systemPrompt.uuid, systemPrompt]]),
 };
 
-// Assign defaultHead as the parent of defaultSystem
-defaultSystem.parent = defaultHead;
+// Assign defaultHead as the parent of systemPrompt
+systemPrompt.parent = defaultHead;
 
 
 
@@ -49,10 +49,10 @@ export const initialNodes: ChatNodePairUi[] = [
         position: { x: 250, y: 5 },
     },
     {
-        id: defaultSystem.uuid,
+        id: systemPrompt.uuid,
         // type: 'customNode', // Use the same custom node type for consistency
         data: {
-            ChatNodePair: defaultSystem,
+            ChatNodePair: systemPrompt,
             label: "System"
         },
         position: { x: 250, y: 100 },
@@ -60,8 +60,8 @@ export const initialNodes: ChatNodePairUi[] = [
 ];
 
 export const initialEdges: Edge[] = [
-    { id: 'headChatNode-systemChatNode', source: defaultHead.uuid, target: defaultSystem.uuid, animated: true, type: "simplebezier" },
+    { id: 'headChatNode-systemChatNode', source: defaultHead.uuid, target: systemPrompt.uuid, animated: true, type: "simplebezier" },
 ];
 
-export default { initialNodes, initialEdges, defaultSystem, defaultHead }
+export default { initialNodes, initialEdges, systemPrompt, defaultHead }
 

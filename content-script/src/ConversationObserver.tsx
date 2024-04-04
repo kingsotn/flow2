@@ -56,7 +56,7 @@ const isEven = (num: number): boolean => num % 2 === 0;
 const ConversationObserver: React.FC<{}> = () => {
     const { sessionId } = useSession();
     const observerRef = useRef<MutationObserver | null>(null);
-    const { addChatNodePair } = useMindMap();
+    const { addChatNodePair, mindMap, updateLastNodeOnDomRef, lastNodeOnDom } = useMindMap();
     const mutationSessionIdRef = useRef(sessionId);
     const lastTurnNumberOnDomRef = useRef<number>(0); // turn number
     const isEditing = useRef<boolean>(false)
@@ -64,7 +64,7 @@ const ConversationObserver: React.FC<{}> = () => {
     useEffect(() => {
 
 
-        function waitForDomLoad(selector: string, interval: number, callback: (element: HTMLElement) => void) {
+        async function waitForDomLoad(selector: string, interval: number, callback: (element: HTMLElement) => void) {
             let intervalId: NodeJS.Timeout | null = null;
 
             const checkForElement = () => {
@@ -80,22 +80,22 @@ const ConversationObserver: React.FC<{}> = () => {
 
         const setupObserver = () => {
             const chatBlockSelector = '.flex.flex-col.text-sm.pb-9'
-            waitForDomLoad(chatBlockSelector, 1000, (chatBody) => {
+            waitForDomLoad(chatBlockSelector, 10, (chatBody) => {
 
 
                 // if user switches chats
-                if (mutationSessionIdRef.current !== sessionId) {
-                    // !! TODO. figure this out.... idk how to init a new reactflow layout.
-                    // console.log("sess aint the same!", mutationSessionIdRef.current, sessionId);
-                    // ReactFlowAutoLayout();
+                // if (mutationSessionIdRef.current !== sessionId) {
+                //     // !! TODO. figure this out.... idk how to init a new reactflow layout.
+                //     // console.log("sess aint the same!", mutationSessionIdRef.current, sessionId);
+                //     // ReactFlowAutoLayout();
 
-                    //  when this happens, should first check if the chatContentMap exists for this chat, otherwise parse the entire DOM
+                //     //  when this happens, should first check if the chatContentMap exists for this chat, otherwise parse the entire DOM
 
-                    //  then render to the ui
-                    console.log("set new Id");
+                //     //  then render to the ui
+                //     console.log("set new Id");
 
-                    mutationSessionIdRef.current = sessionId;
-                }
+                //     mutationSessionIdRef.current = sessionId;
+                // }
 
                 // Assuming observerRef is properly initialized and accessible here
                 if (observerRef.current) return;
@@ -119,45 +119,51 @@ const ConversationObserver: React.FC<{}> = () => {
                         mutation.target.querySelector('.flex-col.gap-1.md\\:gap-3')
                     );
 
-
                     console.log("isEditing", isEditing)
                     if (relevantMutations.length > 0 && isEditing.current === false) {
                         handleMutations(relevantMutations, chatNodePair);
                     }
                 };
 
+                console.log("creating MutationObserver")
                 observerRef.current = new MutationObserver(callback);
                 observerRef.current.observe(chatBody, { childList: true, subtree: true });
             });
         };
-        const handleMutations = (mutationsList: MutationRecord[], chatNodePair: ChatNodePair) => {
+        const handleMutations = (relevantMutations: MutationRecord[], chatNodePair: ChatNodePair) => {
             console.log("found mutation")
 
             // Flag to check if chatNodePair is updated to decide on calling addChatNodePair
             let isChatNodePairUpdated = false;
 
-            mutationsList.forEach(mutation => {
+            console.log("relevant", relevantMutations)
+            relevantMutations.forEach(mutation => {
                 mutation.addedNodes.forEach((textElement) => {
+                    console.log("textElement", textElement)
                     if (
                         isElementNode(textElement) &&
                         hasRequiredClasses(textElement as Element) &&
                         (textElement as Element).hasAttribute('data-testid')
                     ) {
+                        console.log("found the element", textElement)
                         const turnNumber = getTurnNumber(textElement as Element);
+                        console.log("TURN NUMB", turnNumber)
                         if (turnNumber !== null) {
                             // set lastTurnNum
                             lastTurnNumberOnDomRef.current = turnNumber;
 
                             // Parse the DOM node to create a ChatNode
-                            const chatNodeParsed = parseDomToChatNode(turnNumber, textElement);
+                            const chatNodeParsed: ChatNode = parseDomToChatNode(turnNumber, textElement);
 
                             // Update the chatNodePair based on the turn number
                             if (isEven(turnNumber)) {
                                 chatNodePair.userNode = chatNodeParsed;
                                 chatNodePair.uuid = chatNodeParsed.uuid; // Assuming UUID is updated for user nodes
+                                console.log("setting the userTurn as ", turnNumber)
                                 chatNodePair.userTurn = turnNumber
                             } else {
                                 chatNodePair.assistantNode = chatNodeParsed;
+                                console.log("setting the assistantTurn as ", turnNumber)
                                 chatNodePair.assistantTurn = turnNumber
                             }
 
@@ -168,6 +174,25 @@ const ConversationObserver: React.FC<{}> = () => {
                     }
                 });
             });
+
+            // !! 
+            // manually force parse conversation-turn-2 cuz it's not working right now
+            const converation_turn_2 = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(2)")
+            console.log("converation_turn_2", converation_turn_2)
+            const parsed = parseDomToChatNode(2, converation_turn_2!);
+            chatNodePair.userNode = parsed;
+            chatNodePair.uuid = parsed.uuid; // Assuming UUID is updated for user nodes
+            chatNodePair.userTurn = 2
+            // !!
+
+            // parent node is located on conversation-turn via `userTurn - 2`
+            const parentTurn = chatNodePair.userTurn - 2
+            console.log("parentTurn, should not be null: ", parentTurn)
+            if (parentTurn < 2) {
+                chatNodePair.parent = mindMap.get(1)![0] // get systemPrompt if parentTurn < 2
+            } else {
+                chatNodePair.parent = mindMap.get(parentTurn)!.at(-1) // has to be the last one
+            }
 
             // If chatNodePair was updated, add it to the MindMap
             if (isChatNodePairUpdated) {
@@ -196,30 +221,33 @@ const ConversationObserver: React.FC<{}> = () => {
         const editChatDom = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn})`)
         editChatDom ? console.log('onEditButtonClick >> Edit button was clicked at dom:', editChatDom) : console.error("onEditButtonClick >> could not find editChatDom, should not happen")
 
-        lastTurnNumberOnDomRef.current = userTurn
         console.log("editButton >> chatNodePair", chatNodePair.userTurn)
 
-        const submitButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-primary.mr-2`) as HTMLButtonElement | null;
-        const cancelButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-neutral`) as HTMLButtonElement | null;
+        const submitButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-primary.mr-2`);
 
-        submitButton?.addEventListener('click', async function () {
-            // set the current lastNodeOnDom
-            lastTurnNumberOnDomRef.current = userTurn
+        // const cancelButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-neutral`) as HTMLButtonElement | null;
 
-            // change the ui to branch off from editButton
-            const isBranch = true;
-            isEditing.current = true;
-            console.log("setting isEdit:", isEditing)
-            // const currentNodePtr: ChatNodePair[] = chatNodeMap.get(chatNodePair.uuid)
-            // const newParent = currentNodePtr[0]
-            console.log("edit node's parent:", chatNodePair.parent)
-            await addChatNodePair(chatNodePair, isBranch);
-            isEditing.current = false;
-        });
+        console.log("awaiting submit via ", submitButton)
+        if (!!submitButton) {
+            submitButton.addEventListener('submit' || 'click', async function () {
+                console.log('got a submitButton submission')
+
+                // set the current lastNodeOnDom to the last edited
+                updateLastNodeOnDomRef(chatNodePair)
+
+                // change the ui to branch off from editButton
+                isEditing.current = true;
+                console.log("setting isEdit:", isEditing)
+
+
+                // set the new branch parent to the current chatNodePair
+                const branchParent = chatNodePair
+
+                await addChatNodePair(chatNodePair, branchParent); // isBranch=true
+                isEditing.current = false;
+            });
+        }
     }
-
-    let chatNodeMap = new Map<string, ChatNodePair[]>(); // userNode.uuid : ChatNodePair[]
-
 
 
     function parseCurrentChatBody() {
@@ -231,12 +259,10 @@ const ConversationObserver: React.FC<{}> = () => {
             return
         }
 
-        console.log("getChatCount started")
-        getChatCount()
-        console.log("getChatCount fin")
 
-
-        for (let turnNum = 2; turnNum <= lastTurnNumberOnDomRef.current; turnNum += 2) {
+        console.log("lastNodeOnDom.userTurn === lastTurnNumberOnDomRef.current", lastNodeOnDom.userTurn === lastTurnNumberOnDomRef.current)
+        console.log("total conv turns", lastNodeOnDom.userTurn)
+        for (let turnNum = 2; turnNum <= lastNodeOnDom.userTurn; turnNum += 2) {
 
             const userTurn = turnNum;
             const assistantTurn = turnNum + 1;
@@ -250,24 +276,12 @@ const ConversationObserver: React.FC<{}> = () => {
             const previousButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div.mt-1.flex.justify-start.gap-3.empty\\:hidden > div.text-xs.flex.items-center.justify-center.gap-1.self-center.visible > button:nth-child(1)`) as HTMLButtonElement | null;
 
             // Check if any of the selected DOM elements are empty
-            if (!userTextElement) {
-                console.log("User text element is empty");
-            }
-            if (!assistantTextElement) {
-                console.log("Assistant text element is empty");
-            }
-            if (!userGeneralEditButton) {
-                console.log("User general edit button is empty");
-            }
-            if (!editFractionString) {
-                console.log("Edit fraction string is empty");
-            }
-            if (!helpfulDom) {
-                console.log("Helpful DOM element is empty");
-            }
-            if (!previousButton) {
-                console.log("Previous button is empty");
-            }
+            if (!userTextElement) console.log("User text element is empty");
+            if (!assistantTextElement) console.log("Assistant text element is empty");
+            if (!userGeneralEditButton) console.log("User general edit button is empty");
+            if (!editFractionString) console.log("Edit fraction string is empty");
+            if (!helpfulDom) console.log("Helpful DOM element is empty");
+            if (!previousButton) console.log("Previous button is empty");
 
             // Initialize chat node pair and edit count tracking.
             // !!When editing a user message, the conversation-turn-## stays the same. If the assistant replies then its conversation-turn-## also stays the same
@@ -304,9 +318,7 @@ const ConversationObserver: React.FC<{}> = () => {
                     // todo: click the previous button here:
                     previousButton?.click();
                 }
-                // append to the map
-                const editCountStr = editCount > 0 ? `#${editCount}` : '';
-                chatNodeMap.set(`${userTurn}—${assistantTurn}${editCountStr}`, listOfEdits);
+                mindMap.set(userTurn, listOfEdits);
             } else {
                 // return if it is the "Is this conversation helpful so far?"
                 if (helpfulDom === userTextElement) return;
@@ -336,14 +348,14 @@ const ConversationObserver: React.FC<{}> = () => {
                     }
                 }
                 // append to the map
-                chatNodeMap.set(`${userTurn}—${assistantTurn}`, chatNodePair);
+                mindMap.get(userTurn)!.push(chatNodePair[0]);
             }
 
         }
-        // show the chatNodeMap
-        console.log("chatNodeMap", chatNodeMap)
+        // show the mindMap
+        console.log("mindMap", mindMap)
         // Iterate over each entry in the map
-        // for (let [key, value] of chatNodeMap) {
+        // for (let [key, value] of mindMap) {
         //     console.log(key + ":");
 
         //     // Print the content of each chat node
@@ -355,21 +367,6 @@ const ConversationObserver: React.FC<{}> = () => {
 
     }
 
-    function getChatCount() {
-        const chatBody = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div")
-        // "if chatBody exists"
-        if (!!chatBody) {
-            // Assuming each turn is a 'div' directly under 'chatBody'
-            const turns = chatBody.querySelectorAll(":scope > div > div");
-            console.log(`Total conversation turns: ${turns.length - 2}`);
-            lastTurnNumberOnDomRef.current = turns.length - 2 // -2 cuz we iterate from 2
-        } else {
-            console.log("Chat body not found.");
-        }
-    }
-
-
-    // TODO: commented out for now
     parseCurrentChatBody();
 
 

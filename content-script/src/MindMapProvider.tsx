@@ -1,6 +1,6 @@
 // ChatNodeContext.tsx
 
-// Role: Serves as the context provider of MindMap. It manages the state of the mind map (e.g., nodes and lastNodeOnDom) and provides functions to modify this state (e.g., addChatNodePair).
+// Role: Serves as the context provider of MindMap. It manages the state of the mind map (e.g., mindMap and lastNodeOnDom) and provides functions to modify this state (e.g., addChatNodePair).
 // State Management: Uses refs or state hooks (e.g., useState, useRef) to keep track of the current state. When the state updates, it should provide the new state to through the context.
 // UI Updates Trigger: When addChatNodePair is called, and a new node is successfully added, it updates the mind map's state. This change in state (or refs, if you're using them to track mutable data without causing re-renders) should be propagated through the context to any consuming components.
 
@@ -8,7 +8,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { useSession } from './SessionProvider';
 // import { useFlow } from './FlowContext';
 
-import { defaultSystem, defaultHead, ChatNodePairUi } from './initialData';
+import { systemPrompt, defaultHead, ChatNodePairUi } from './initialData';
 
 
 type Role = "User" | "Assistant" | "System";
@@ -37,9 +37,9 @@ export interface ChatNodePair {
 
 export interface MindMapContextType {
     sessionId: string;
-    nodes: Map<string, ChatNodePair>;
+    mindMap: Map<number, ChatNodePair[]>;
     updateLastNodeOnDomRef: (node: ChatNodePair) => void;
-    addChatNodePair: (node: ChatNodePair, isBranch?: boolean) => void;
+    addChatNodePair: (node: ChatNodePair, branchParent?: ChatNodePair) => void;
     lastNodeOnDom: ChatNodePair;
     toAddNode: ChatNodePair | null; // Adjusted to allow ChatNodePair or null
     setToAddNode: (node: ChatNodePair | null) => void; // Ensure setter accepts ChatNodePair | null
@@ -48,10 +48,10 @@ export interface MindMapContextType {
 // Default context value incorporating the head root
 export const defaultMindMapContextValue: MindMapContextType = {
     sessionId: '', // Assuming an empty string or some initial value
-    nodes: new Map([[defaultSystem.uuid, defaultSystem]]),
+    mindMap: new Map<number, ChatNodePair[]>(),
     updateLastNodeOnDomRef: () => { },
-    addChatNodePair: (node: ChatNodePair, isBranch?: boolean) => { }, // Stub function, since we can't add nodes without the provider
-    lastNodeOnDom: defaultSystem,
+    addChatNodePair: (node: ChatNodePair, branchParent?: ChatNodePair) => { }, // Stub function, since we can't add mindMap without the provider
+    lastNodeOnDom: systemPrompt,
     toAddNode: null,
     setToAddNode: () => { },
 };
@@ -62,19 +62,29 @@ const MindMapContext = createContext(defaultMindMapContextValue);
 const MindMapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { sessionId } = useSession();
     // const { addChildNode } = useFlow();
-    const nodes = useRef<Map<string, ChatNodePair>>(new Map([[defaultHead.uuid, defaultHead], [defaultSystem.uuid, defaultSystem]]));
-    const lastNodeOnDomRef = useRef<ChatNodePair>(defaultSystem);
+
+    const mindMap = useRef(new Map<number, ChatNodePair[]>); // userTurn : ChatNodePair[]
+
+    // init defaultHead and systemPrompt
+    mindMap.current.set(defaultHead.userTurn, [defaultHead])
+    mindMap.current.set(systemPrompt.userTurn, [systemPrompt])
+
+    const lastNodeOnDomRef = useRef<ChatNodePair>(systemPrompt);
     const [toAddNode, setToAddNode] = useState<ChatNodePair | null>(null); // this is needed in FlowApp to keep track of state
 
-    const addChatNodePair = (node: ChatNodePair, isBranch?: boolean) => {
-        // Access the current value of the nodes ref
-        const updatedNodes = new Map(nodes.current);
+    const addChatNodePair = (node: ChatNodePair, branchParent?: ChatNodePair) => {
+        // Access the current value of the mindMap ref
+        console.log("branching!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-        let parentNode = lastNodeOnDomRef.current
-        if (isBranch) {
+        let parentNode: ChatNodePair = lastNodeOnDomRef.current
+
+        // if user edits and submits, let's branch
+        if (!!branchParent) {
             console.log("addChatNodePair>> branching via:", node.uuid.slice(-14))
-            console.log("addChatNodePair>> parent node:")
-            // parentNode = node.parent
+            parentNode = branchParent
+            console.log("addChatNodePair>> parent node:", parentNode)
+
+
         }
 
         // Access the most current lastNodeOnDom from the ref
@@ -84,6 +94,7 @@ const MindMapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
             return; // Return if the parent isn't found
         }
 
+        console.log("toAddNode updated:", node)
         setToAddNode(node);
 
         // Link the new node to its parent and vice versa
@@ -91,14 +102,19 @@ const MindMapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         parentNode.children.set(node.uuid, node);
         console.log(`Node added: ${node.uuid.slice(-14)}, Parent: ${parentNode.uuid.slice(-14)}`);
 
-        // Update the nodes ref
-        nodes.current = updatedNodes;
+        // Update the mindMap ref
+        if (mindMap.current.has(node.userTurn)) {
+            mindMap.current.get(node.userTurn)!.push(node); // Asserting that it's not undefined
+        } else {
+            mindMap.current.set(node.userTurn, [node]);
+        }
 
         // Update the lastNodeOnDom ref
         // lastNodeOnDomRef.current = node;
         console.log("lastNodeOnDom", lastNodeOnDomRef.current.uuid.slice(-14));
         console.log(`MindMap (${sessionId}):`);
         console.log("calling addChildNode")
+        console.log("ALL NODES >>>>>>>>>>>>>>>>>>>>>>. ", mindMap.current)
     };
 
 
@@ -111,7 +127,7 @@ const MindMapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }, []);
 
     return sessionId ? (
-        <MindMapContext.Provider value={{ sessionId, addChatNodePair, toAddNode, setToAddNode, updateLastNodeOnDomRef, nodes: nodes.current, lastNodeOnDom: lastNodeOnDomRef.current }}>
+        <MindMapContext.Provider value={{ sessionId, addChatNodePair, toAddNode, setToAddNode, updateLastNodeOnDomRef, mindMap: mindMap.current, lastNodeOnDom: lastNodeOnDomRef.current }}>
             {children}
         </MindMapContext.Provider>
     ) : (
