@@ -60,6 +60,7 @@ const ConversationObserver: React.FC<{}> = () => {
     const mutationSessionIdRef = useRef(sessionId);
     const lastTurnNumberOnDomRef = useRef<number>(0); // turn number
     const isEditing = useRef<boolean>(false)
+    const [convTurn2, setConvTurn2] = useState(true);
 
     useEffect(() => {
 
@@ -116,7 +117,8 @@ const ConversationObserver: React.FC<{}> = () => {
                         mutation.type === 'childList' &&
                         mutation.addedNodes.length > 0 &&
                         mutation.target instanceof Element &&
-                        mutation.target.querySelector('.flex-col.gap-1.md\\:gap-3')
+                        mutation.target.querySelector('.flex-col.gap-1.md\\:gap-3') &&
+                        isEditing.current === false
                     );
 
                     console.log("isEditing", isEditing)
@@ -125,7 +127,7 @@ const ConversationObserver: React.FC<{}> = () => {
                     }
                 };
 
-                console.log("creating MutationObserver")
+                // console.log("creating MutationObserver")
                 observerRef.current = new MutationObserver(callback);
                 observerRef.current.observe(chatBody, { childList: true, subtree: true });
             });
@@ -177,12 +179,15 @@ const ConversationObserver: React.FC<{}> = () => {
 
             // !! 
             // manually force parse conversation-turn-2 cuz it's not working right now
-            const converation_turn_2 = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(2)")
-            console.log("converation_turn_2", converation_turn_2)
-            const parsed = parseDomToChatNode(2, converation_turn_2!);
-            chatNodePair.userNode = parsed;
-            chatNodePair.uuid = parsed.uuid; // Assuming UUID is updated for user nodes
-            chatNodePair.userTurn = 2
+            if (convTurn2) {
+                const converation_turn_2 = document.querySelector("#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(2)")
+                console.log("converation_turn_2", converation_turn_2)
+                const parsed = parseDomToChatNode(2, converation_turn_2!);
+                chatNodePair.userNode = parsed;
+                chatNodePair.uuid = parsed.uuid; // Assuming UUID is updated for user nodes
+                chatNodePair.userTurn = 2
+                setConvTurn2(false)
+            }
             // !!
 
             // parent node is located on conversation-turn via `userTurn - 2`
@@ -203,6 +208,7 @@ const ConversationObserver: React.FC<{}> = () => {
 
         setupObserver();
         console.log("sesh", sessionId)
+        parseCurrentChatBody();
 
         // Cleanup function
         return () => {
@@ -212,41 +218,64 @@ const ConversationObserver: React.FC<{}> = () => {
                 observerRef.current = null;
             }
         };
+
     }, [sessionId]); // Dependency on sessionId to reset observer if it changes
 
 
     // figure out how many i have                     
 
-    function onEditButtonClick(userTurn: number, assistantTurn: number, chatNodePair: ChatNodePair) {
-        const editChatDom = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn})`)
+    function onEditButtonClick(editChatNodePair: ChatNodePair) {
+        //get dom
+        const editChatDom = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${editChatNodePair.userTurn})`)
         editChatDom ? console.log('onEditButtonClick >> Edit button was clicked at dom:', editChatDom) : console.error("onEditButtonClick >> could not find editChatDom, should not happen")
+        console.log("editButton >> editChatNodePair", editChatNodePair.userTurn)
 
-        console.log("editButton >> chatNodePair", chatNodePair.userTurn)
-
-        const submitButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-primary.mr-2`);
-
-        // const cancelButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-neutral`) as HTMLButtonElement | null;
-
-        console.log("awaiting submit via ", submitButton)
-        if (!!submitButton) {
-            submitButton.addEventListener('submit' || 'click', async function () {
-                console.log('got a submitButton submission')
-
-                // set the current lastNodeOnDom to the last edited
-                updateLastNodeOnDomRef(chatNodePair)
-
-                // change the ui to branch off from editButton
+        // get submit button
+        let submitButton: HTMLButtonElement;
+        setTimeout(() => { // need to wait for element to load
+            submitButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${editChatNodePair.userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-primary.mr-2`) as HTMLButtonElement;
+            submitButton ? console.log('onEditButtonClick >> submitButton', submitButton) : console.error("onEditButtonClick >> could not find submitButton, should not happen")
+            // const cancelButton = document.querySelector(`#__next > div.relative.z-0.flex.h-full.w-full.overflow-hidden > div.relative.flex.h-full.max-w-full.flex-1.flex-col.overflow-hidden > main > div.flex.h-full.flex-col > div.flex-1.overflow-hidden > div > div > div > div > div:nth-child(${userTurn}) > div > div > div.relative.flex.w-full.flex-col > div.flex-col.gap-1.md\\:gap-3 > div > div > button.btn.relative.btn-neutral`) as HTMLButtonElement | null;
+            if (!!submitButton) {
+                console.log("creating listener")
                 isEditing.current = true;
-                console.log("setting isEdit:", isEditing)
+                submitButton.addEventListener('click', function () {
+                    console.log('got a submitButton submission')
 
+                    // set the new branch parent to the current editChatNodePair
+                    const branchParent = editChatNodePair
 
-                // set the new branch parent to the current chatNodePair
-                const branchParent = chatNodePair
+                    const editUserChatNode: ChatNode = {
+                        uuid: "tempUserEdit",
+                        conversationTurn: editChatNodePair.userTurn,
+                        role: "User",
+                        content: "tempUserContent"
+                    };
 
-                await addChatNodePair(chatNodePair, branchParent); // isBranch=true
-                isEditing.current = false;
-            });
-        }
+                    const editAssistantChatNode: ChatNode = {
+                        uuid: "tempUserEdit",
+                        conversationTurn: editChatNodePair.userTurn + 1,
+                        role: "Assistant",
+                        content: "tempAssistantContent"
+                    }
+
+                    const branchCNP: ChatNodePair = {
+                        uuid: "tempUserEdit", // just use the User's uuid
+                        userNode: editUserChatNode,
+                        assistantNode: editAssistantChatNode,
+                        userTurn: editChatNodePair.userTurn,
+                        assistantTurn: editChatNodePair.userTurn + 1,
+                        children: new Map<string, ChatNodePair>,
+                        parent: branchParent
+                    }
+
+                    addChatNodePair(branchCNP, branchParent); // isBranch=true
+                    isEditing.current = false;
+                });
+            } else {
+                console.log("NO SUBMIT button")
+            }
+        }, 100);
     }
 
 
@@ -343,7 +372,7 @@ const ConversationObserver: React.FC<{}> = () => {
                     console.log(`button on ${userTurn}`);
                     if (chatNodePair[0].uuid) {
                         userGeneralEditButton.addEventListener('click', function () {
-                            onEditButtonClick(userTurn, assistantTurn, chatNodePair[0]);
+                            onEditButtonClick(chatNodePair[0]);
                         });
                     }
                 }
@@ -366,8 +395,6 @@ const ConversationObserver: React.FC<{}> = () => {
         // }
 
     }
-
-    parseCurrentChatBody();
 
 
     return null; // This component does not render anything

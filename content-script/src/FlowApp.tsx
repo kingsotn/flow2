@@ -128,31 +128,82 @@ export function ReactFlowAutoLayout() {
         setEdges((currentEdges) => currentEdges.concat([connectingEdge]));
     }, [setNodes, setEdges]);
 
+    const branchChildNode = useCallback((node: ChatNodePair) => {
+        console.log(">>> Inside branchChildNode with", node);
+
+        // Validation checks
+        if (!node || !node.parent) {
+            console.log("Node data is incomplete or missing");
+            return; // Early return if node data doesn't meet the requirements
+        }
+
+        // Create the new node for the UI
+        const branchNode: ChatNodePairUi = {
+            id: node.uuid,
+            data: { ...node, label: String(node.userTurn) },
+            position: { x: Math.random() * 100, y: Math.random() * 100 }, // Example positioning, adjust as needed
+            style: { opacity: 1 }, // Adjust for branching node if needed
+        };
+
+        // Create the connecting edge for the UI
+        console.log(`Branching from ${node.parent.userTurn} to ${node.userTurn}`)
+        const branchingEdge: Edge = {
+            id: `${node.parent.uuid}->${node.uuid}`,
+            source: node.parent.uuid,
+            target: node.uuid,
+            style: { opacity: 1, stroke: "#ff0000" }, // Example style, adjust as needed
+            animated: true,
+        };
+
+        // Add the new node and edge to your state, similar to addChildNode but with your branching logic
+        setNodes((currentNodes) => [...currentNodes, branchNode]);
+        setEdges((currentEdges) => [...currentEdges, branchingEdge]);
+
+        // Update any other state or references as needed for the branching logic
+    }, [setNodes, setEdges]); // Include other dependencies as necessary
+
+
 
     // normally adding a node
     useEffect(() => {
-        {
-            console.log("all nodes:")
-            nodes.forEach((nd) => {
-                console.log(nd.data.label)
-            })
-            console.log("all edges", edges)
+        console.log("all nodes:")
+        nodes.forEach((nd) => {
+            console.log(nd.data.label)
+        })
+        console.log("all edges", edges)
 
-            console.log("testing useEffect mindmapinfo")
-            if (mindMapInfo.toAddNode) {
-                console.log("mindMapInfo.lastNodeOnDom", mindMapInfo.lastNodeOnDom)
-                const newCNP: ChatNodePair = {
-                    uuid: mindMapInfo.toAddNode.uuid,
-                    children: new Map<string, ChatNodePair>(),
-                    parent: mindMapInfo.lastNodeOnDom,
-                    userTurn: mindMapInfo.toAddNode.userTurn,
-                    assistantTurn: mindMapInfo.toAddNode.assistantTurn,
-                };
+        console.log("testing useEffect mindmapinfo")
+        if (mindMapInfo.toAddNode) {
+            console.log("mindMapInfo.lastNodeOnDom", mindMapInfo.lastNodeOnDom)
+            const newCNP: ChatNodePair = {
+                uuid: mindMapInfo.toAddNode.uuid,
+                children: new Map<string, ChatNodePair>(), // the newest leaf node has to have no children
+                parent: mindMapInfo.lastNodeOnDom,
+                userTurn: mindMapInfo.toAddNode.userTurn,
+                assistantTurn: mindMapInfo.toAddNode.assistantTurn,
+            };
 
-                addChildNode(newCNP)
-            }
+            addChildNode(newCNP)
         }
     }, [mindMapInfo.mindMap.size, mindMapInfo.toAddNode])
+
+    useEffect(() => {
+        console.log("BRANCH TIMEEEEE", mindMapInfo.toBranchNode)
+
+        if (mindMapInfo.toBranchNode) {
+            console.log("mindMapInfo.lastNodeOnDom", mindMapInfo.lastNodeOnDom)
+            const newCNP: ChatNodePair = {
+                uuid: mindMapInfo.toBranchNode.uuid,
+                children: new Map<string, ChatNodePair>(), // the newest leaf node has to have no children
+                parent: mindMapInfo.toBranchNode.parent,
+                userTurn: mindMapInfo.toBranchNode.userTurn,
+                assistantTurn: mindMapInfo.toBranchNode.assistantTurn,
+            };
+
+            branchChildNode(newCNP)
+        }
+
+    }, [mindMapInfo.toBranchNode])
 
     // 
 
