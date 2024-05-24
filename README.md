@@ -4,6 +4,8 @@ https://github.com/kingsotn/flow2/assets/36507785/8cc85106-967d-429f-8dfa-26c696
 
 Sam Altman said that gpt is best used as a [brainstorming tool](https://youtu.be/jvqFAi7vkBc?si=W-Guv57vhzGdO4yc&t=3140). Let's implement that with an overlay extension on ChatGPT.
 
+This was also something i found cool: https://twitter.com/MindBranches
+
 ## Run
 
 ```
