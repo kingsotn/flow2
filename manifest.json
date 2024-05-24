@@ -11,7 +11,7 @@
     "icons": {},
     "content_scripts": [
         {
-            "matches": ["https://blank.org/*", "https://*.openai.com/*"],
+            "matches": ["https://blank.org/*", "https://chatgpt.com/*"],
             "js": ["content-script/src/main.tsx"],
             "media": []
         }
